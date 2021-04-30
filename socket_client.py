@@ -1,4 +1,5 @@
 import hashlib, paramiko
+import os
 import socket, threading, time, binascii
 from multiprocessing import Queue
 #from db.database import Database
@@ -75,13 +76,23 @@ class asyncio_client():
             print(("sent : {} bytes.\n").format(len(payload)))
             read_data = await reader.read(1024)
             print(("received : {} bytes").format(len(read_data)))
-            q.put(read_data)
-            print(("message : {}").format(read_data.decode()))
+            if read_data == '06': #ACK부분 수정필요. 수신데이터와 분리할 필요가 있음
+                break
+            elif read_data == '15' :
+                pass
+            elif read_data == '04' :
+                pass
+            else :
+                q.put(read_data)
+                print(("message : {}").format(read_data.decode()))
+                writer.close()
+                await writer.wait_close()
+                
         print("closing connection")
         writer.close()
         await writer.wait_closed()
 
-class data_handler:
+class data_handler: # 수신메세지 분석 클래스. 
     raw_data = q.get()
     #NEED SEED128 DECODE
 
@@ -110,7 +121,7 @@ class send_handler:
         msg = bytearray()
         msg_type = order[8].encode('ascii')
         client_version = ('2.03').encode('ascii')
-        hash_code = (b'0547501027887948D5BB3912933B09476D69F434E260F96ACA3A60829877C6DD78B0')
+        hash_code = bytes(send_handler.SHA_256())
         CRC_len = 2
         msg_len = (('{}').format(len(msg_type)+len(db_datas)+len(client_version)+len(hash_code)+CRC_len)).encode('ascii')
         
@@ -134,13 +145,17 @@ class device_upgrade_handler :
         serverpath = 
         id = 
         pwd = 
-        clientpath = 
+        clientpath = '/root/sensor/updatePakage'
         filename =
         transport = paramiko.Transport(host,port)
         transport.connect(username=id, password=pwd)
         SFTP.get(serverpath, clientpath)
         SFTP.close()
         transport.close()
+    def upgrade():
+        os.system("chmod 755 /root/sensor/updatePakage/update.sh")
+        os.system("/root/sensor/updatePakage/update.sh")
+    
     pass
 
 
