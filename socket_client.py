@@ -1,9 +1,11 @@
+import hashlib, paramiko
 import socket, threading, time, binascii
 from multiprocessing import Queue
 #from db.database import Database
 #from db.models import TDEVICEDATA5MINSERVER, TDEVICEDATA1MINSERVER
 import binascii, asyncio
 from crccheck.crc import Crc, Crc16Ccitt
+from paramiko.sftp_client import SFTP
 
 
 
@@ -11,24 +13,24 @@ host = "192.168.1.203"
 port = 90
 
 q = Queue()
-order = ['TDAT', #0.측정데이터전송\자료전송 G>S
-		 'PDUM', #1.저장자료요청/전송\요청 S>G
-		 'TDUM', #2.저장자료요청/전송\응답
-		 'TFDT', #3.미전송자료 전송\자동전송
-		 'PSEP', #4.비밀번호변경 전송\암호변경지시
-		 'TVER', #5.
-		 'PTIM', #6.
-		 'PUPG', #7.
-		 'TUPG', #8.
-		 'TCNG', #9.
-		 'PVER', #10.
-		 'DVER', #11.
-		 'PSET'] #12.
+order = ['TDAT', #0.측정데이터자료전송                  Gateway -> Server 
+		 'PDUM', #1.저장자료 요청                          Server -> Gateway
+		 'TDUM', #2.저장자료요청 응답                   Gateway -> Server
+		 'TFDT', #3.미전송자료 자동전송                 Gateway -> Server
+		 'PSEP', #4.비밀번호 암호변경지시                  Server -> Gateway
+		 'TVER', #5.기동정보전송                        Gateway -> server
+		 'PTIM', #6.기동정보메세지 수신시 서버시간 전송     Server -> Gateway
+		 'PUPG', #7.업그레이드지시전송                      Server -> Gateway
+		 'TUPG', #8.업그레이드결과전송                   Gateway -> Server
+		 'TCNG', #9.설정값 변경항목 자동 전송            Gateway -> Server
+		 'PVER', #10.버전정보 조회요청                      Server -> Gateway
+		 'DVER', #11.버전정보 조회응답                   Gateway -> Server
+		 'PSET'] #12.수동 시간 설정                         Server -> Gateway
 
 
 """
 # 서버의 주소입니다. hostname 또는 ip address를 사용할 수 있습니다.
-HOST = '218.146.19.3'
+HOST = ''
 # 서버에서 지정해 놓은 포트 번호입니다.
 PORT = 3030
 
@@ -60,9 +62,11 @@ class asyncio_client():
         reader : asyncio.StreamReader
         writer : asyncio.StreamReader
         reader, writer = await asyncio.open_connection(host,port)
-        print("connection info :", host,':',port)
+        print("connection info :",host,':',port)
+
+        
         while True :
-            data = protocol_client_send.upgrade_result_send()
+            data = send_handler.upgrade_result_send() #NEED SEED128 ENCODE
             if not data :
                 break
             payload = data
@@ -71,15 +75,20 @@ class asyncio_client():
             print(("sent : {} bytes.\n").format(len(payload)))
             read_data = await reader.read(1024)
             print(("received : {} bytes").format(len(read_data)))
+            q.put(read_data)
             print(("message : {}").format(read_data.decode()))
         print("closing connection")
         writer.close()
         await writer.wait_closed()
 
+class data_handler:
+    raw_data = q.get()
+    #NEED SEED128 DECODE
+
+    pass
 
 
-
-class protocol_client_send:
+class send_handler:
     def __init__(self):
         self.db_datas = db_datas
 
@@ -88,7 +97,16 @@ class protocol_client_send:
         crc16 = Crc16Ccitt.calc(data)
         return crc16
 
-    def upgrade_result_send():
+    def SHA_256():
+        with open('/root/sensor/main.py', 'rb') as crypt :
+            s = crypt.read()
+            sha_key = hashlib.sha256(s).hexdigest().upper()
+        return sha_key
+
+    def version_info():
+        pass
+    
+    def upgrade_result_send(): #TUPG
         msg = bytearray()
         msg_type = order[8].encode('ascii')
         client_version = ('2.03').encode('ascii')
@@ -96,7 +114,7 @@ class protocol_client_send:
         CRC_len = 2
         msg_len = (('{}').format(len(msg_type)+len(db_datas)+len(client_version)+len(hash_code)+CRC_len)).encode('ascii')
         
-        CRC_code = hex(protocol_client_send.CRC16_CCITT(msg_type+db_datas+msg_len, client_version+hash_code)).replace('0x','').upper()
+        CRC_code = hex(send_handler.CRC16_CCITT(msg_type+db_datas+msg_len, client_version+hash_code)).replace('0x','').upper()
         print(CRC_code, type(CRC_code))
         msg.extend(msg_type)
         msg.extend(db_datas)
@@ -106,9 +124,79 @@ class protocol_client_send:
         msg.extend(CRC_code.encode('ascii'))
         print(msg)
         return msg
+
+    def send_message():
+        pass
+class device_upgrade_handler :
+    def sftp_download():
+        host = 
+        port =
+        serverpath = 
+        id = 
+        pwd = 
+        clientpath = 
+        filename =
+        transport = paramiko.Transport(host,port)
+        transport.connect(username=id, password=pwd)
+        SFTP.get(serverpath, clientpath)
+        SFTP.close()
+        transport.close()
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(asyncio_client.run_client())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 '''
 while(True):
