@@ -74,23 +74,29 @@ class asyncio_client():
                 order = read_data[0:8].decode('ascii')
                 if order == '54564552' :
                     print("ORDER : TVER")
-                    payload = msg_handler.TVER()
+                    
+                    super(payload) = msg_handler.TVER()
                     writer.write(payload)
-                if order == '54555047' :
+                    
+                elif order == '54555047' :
                     print("ORDER : TUPG")
                     payload = msg_handler.TUPG()
                     print(payload)
                     writer.write(payload)
+                    
                 elif order == '50555047' :
                     print("order : PUPG")
-
+                    
+                    
+                else : 
+                    pass
             print(("sent : {} bytes.").format(len(payload)))
             print(("message : {}, {}").format(read_data.decode(), type(read_data.decode())))
                 
 
-            print("closing connection")
-            writer.close()
-            await writer.wait_closed()
+        print("closing connection")
+        writer.close()
+        await writer.wait_closed()
 '''
 class send_recv: # 송수신메세지 처리 클래스. 
     raw_data = q.get()
@@ -168,6 +174,13 @@ class msg_handler:
 '''
 class device_upgrade_handler :
     def sftp_download(msg):
+        msgd = []
+        print('duh message:', msg)
+        for i in range(len(msg)):
+            msgd.append(chr(str(msg[i:i+2])))
+        print(msgd)
+        
+    
         tp = msg[0:2]
         dl_host = msg[2:83]
         dl_port = msg[83:93]
@@ -187,10 +200,10 @@ class device_upgrade_handler :
         #압축풀기 들어가야함.
         os.system("chmod 755 /root/sensor/updatePakage/update.sh")
         os.system("/root/sensor/updatePakage/update.sh")
-    
+    '''
     
 
-'''
+
 
 
 
