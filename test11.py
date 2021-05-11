@@ -6,7 +6,7 @@ from crccheck.crc import Crc, Crc16Ccitt
 #from paramiko.sftp_client import SFTP
 import distributed
 from dateutil.parser import parse
-import ctypes
+import ctypes, pysftp
 from array import *
 import numpy as np
 import struct
@@ -21,19 +21,20 @@ kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
 
 q = Queue()
 tq = Queue()
+
 order = ['TDAT', #0.측정데이터자료전송                  Gateway -> Server           정기실행
-		 'PDUM', #1.저장자료 요청                          Server -> Gateway
-		 'TDUM', #2.저장자료요청 응답                   Gateway -> Server           요청필요
-		 'TFDT', #3.미전송자료 자동전송                 Gateway -> Server           정기실행
-		 'PSEP', #4.비밀번호 암호변경지시                  Server -> Gateway
-		 'TVER', #5.기동정보전송                        Gateway -> server           정기실행
-		 'PTIM', #6.기동정보메세지 수신시 서버시간 전송     Server -> Gateway
-		 'PUPG', #7.업그레이드지시전송                      Server -> Gateway
-		 'TUPG', #8.업그레이드결과전송                   Gateway -> Server          요청필요
-		 'TCNG', #9.설정값 변경항목 자동 전송            Gateway -> Server          정기실행
-		 'PVER', #10.버전정보 조회요청                      Server -> Gateway
-		 'DVER', #11.버전정보 조회응답                   Gateway -> Server          요청필요
-		 'PSET'] #12.수동 시간 설정                         Server -> Gateway
+         'PDUM', #1.저장자료 요청                          Server -> Gateway
+         'TDUM', #2.저장자료요청 응답                   Gateway -> Server           요청필요
+         'TFDT', #3.미전송자료 자동전송                 Gateway -> Server           정기실행
+         'PSEP', #4.비밀번호 암호변경지시                  Server -> Gateway
+         'TVER', #5.기동정보전송                        Gateway -> server           정기실행
+         'PTIM', #6.기동정보메세지 수신시 서버시간 전송     Server -> Gateway
+         'PUPG', #7.업그레이드지시전송                      Server -> Gateway
+         'TUPG', #8.업그레이드결과전송                   Gateway -> Server          요청필요
+         'TCNG', #9.설정값 변경항목 자동 전송            Gateway -> Server          정기실행
+         'PVER', #10.버전정보 조회요청                      Server -> Gateway
+         'DVER', #11.버전정보 조회응답                   Gateway -> Server          요청필요
+         'PSET'] #12.수동 시간 설정                         Server -> Gateway
 
 # 0 3 5 정기실행
 # 수신 후 device 설정 : 6, 8, 12
@@ -51,23 +52,44 @@ db_datas = ('1100001001').encode('ascii')
 JEJO_CODE = 'HR'.encode('ascii')
 
 class CBC():
-    pbszUserKey = [0x0e9, 0x0F3, 0x094, 0x037, 0x00A, 0x0D4, 0x005, 0x089, 0x088, 0x0E3, 0x04F, 0x08F, 0x008, 0x017, 0x079, 0x0F1]
+    pbszUserKey = [0x0E9, 0x0F3, 0x094, 0x037, 0x00A, 0x0D4, 0x005, 0x089, 0x088, 0x0E3, 0x04F, 0x08F, 0x008, 0x017, 0x079, 0x0F1]
     pbszIV = [0x06F, 0x0BA, 0x0D9, 0x0FA, 0x036, 0x016, 0x025, 0x001, 0x026, 0x08D, 0x066, 0x0A7, 0x035, 0x0A8, 0x01A, 0x081]
-    plainText = [50,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,0x74,0x65,0x73,0x74,0x2E,0x6A,0x69,0x6E,0x77,0x6F,0x6F,0x73,
-    0x69,0x2E,0x63,0x6F,0x2E,0x6B,0x72,32,0x38,0x32,0x32,0x31,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,0x2F,0x49,0x47,
-    0x57,0x2E,0x65,0x78,0x65,32,32,32,32,0x66,0x74,0x70,0x73,0x30,0x31,32,32,32,32,
-    0x66,0x74,0x70,0x73,0x30,0x31]
-    pbszCipherText = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-    0x00,0x00,0x00,0x00,0x00,0x00,0x04,0x05,0x03,0x04,0x0E,0x0A,0x69,0x6E,0x77,0x6F,0x6F,0x73,
-    0x69,0x2E,0x63,0x6F,0x2E,0x6B,0x72,32,0x38,0x32,0x32,0x31,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,0x2F,0x49,0x47,
-    0x57,0x2E,0x65,0x78,0x65,32,32,32,32,0x66,0x74,0x70,0x73,0x30,0x31,32,32,32,32,
-    0x66,0x74,0x70,0x73,0x30,0x31]
-
+    plainText = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+    pbszCipherText = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
 
 
     pbszUserKey_array = (ctypes.c_ubyte * len(pbszUserKey))(*pbszUserKey)
@@ -80,12 +102,21 @@ class CBC():
     seed_cbc_encrypt = kisa_seed_cbc.SEED_CBC_Encrypt
     seed_cbc_decrypt = kisa_seed_cbc.SEED_CBC_Decrypt
 
-#seed_cbc_encrypt = kisa_seed_cbc.SEED_CBC_Encrypt
-
+	#샘플 문장. 전체 평문의 길이를 계산하기 위한 용도로 사용한다
+    ipAddr = "test.jinwoosi.co.kr"
+    portNum = "8282"
+    pathName = "/IGW.exe"
+    loginId = "ftps01"
+    loginPw = "ftps01"
+    PUPG_msg = "2%40s%5s%50s%10s%10s" %(ipAddr, portNum, pathName, loginId, loginPw)
+    bPUPG_msg = bytes(PUPG_msg, 'utf-8')
+    PUPG_array = (ctypes.c_ubyte * len(bPUPG_msg))(*bPUPG_msg)
+    
 #seed_cbc_encrypt(pbszUserKey_array, pbszIV_array, plainText_array, pbszCipherText_array)
-    def encrypt(msg) : #msg 타입은 hex list, plainText_array 통해서 Ctype Array로 변환한다.
+
+    def encrypt(msg) : #인풋 메세지 암호화 함수
         global res_e
-        res_e = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, 63, CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
+        res_e = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
         print("encrypt res :", res_e)
 
         range(0, res_e)
@@ -93,36 +124,44 @@ class CBC():
                 print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
         print("\r\n")
 
-    def for_resd(msg) : #msg 타입은 hex list, plainText_array 통해서 Ctype Array로 변환한다.
+    def encrypt_sample() : # decrypt 함수의 암호문 길이를 리턴하기 위한 함수이다.
+        
+        res = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
+        print("encrypt res :", res)
 
-        res_ed = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, 63, CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
-        print("encrypt res :", res_ed)
-
-        range(0, res_ed)
-        for i in range(res_ed):
+        range(0, res)
+        for i in range(res):
                 print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
-        print("\r\n")
-        return res_ed
-    def decrypt(msg) :
-        msg_list = []
-        for i in range(int((len(msg))/2)) :
-            msg_list.append(int((msg[2*i:2*i+2]),16))
-        print(msg_list)
-        res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.pbszCipherText_array, CBC.for_resd(msg), CBC.plainText_array) # key, IV, 암호문, 암호문 길이, 평문출력버퍼
+        return res
 
-        decrypt_result = []
+    def decrypt(msg) :
+        print("msg:", msg)
+        inputEncryptedStr = msg
+        print("inputEncryptedStr:", inputEncryptedStr)
+        inputEncryptedStr_list = []
+        print("inputEncryptedStr_list:", inputEncryptedStr_list)
+        for i in range(int((len(inputEncryptedStr))/2)) :
+            inputEncryptedStr_list.append((inputEncryptedStr[2*i:2*i+2]))
+        print("inputEncryptedStr_list2:", inputEncryptedStr_list)
+        intlist = []
+        for i in range(len(inputEncryptedStr_list)):
+            intlist.append(int(inputEncryptedStr_list[i],16))
+        print("intlist:", intlist)
+        input_array = (ctypes.c_ubyte * len(intlist))(*intlist)
+
+        res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, input_array, CBC.encrypt_sample(), CBC.plainText_array) # key, IV, 암호문, 암호문 길이, 평문출력버퍼
+
+        decrypt_result = ''
         print("decrypt res :", res_d)
         range(0, res_d)
         for i in range(res_d):
-                decrypt_result.append(CBC.plainText_array[i])
                 print(hex(CBC.plainText_array[i]), end=' ')
-        for i in range(res_d):
-                print(chr(CBC.plainText_array[i]), end='')
-        res_decode = ''
-        for i in range(len(decrypt_result)):
-            res_decode+=(chr(int(str(decrypt_result[i]))))
+                decrypt_result+=chr(CBC.plainText_array[i])
+                
         print("\r\n")
-        return res_decode
+        print("Dectypted Result:",decrypt_result)
+        return decrypt_result
+
 
 '''
     ######################################################################################################
@@ -220,8 +259,8 @@ class asyncio_client():
                     
                 elif order == '50555047' : #PUPG업그레이드지시전송, 결과는 TUPG
                     print("order : PUPG")
-                    print("sftp message :", read_data[36:])
-                    device_upgrade_handler.sftp_download(read_data[36:])
+                    print("sftp message :", read_data[36:(len(read_data)-4)])
+                    device_upgrade_handler.sftp_download(read_data[36:(len(read_data)-4)])
                 
                 elif order == '50534554' : # PSET
                     if len(read_data) != 64 :
@@ -341,11 +380,20 @@ class device_upgrade_handler :
         
     
         tp = decrypt_msg[0:2]
-        dl_host = decrypt_msg[22:42]
-        dl_port = decrypt_msg[42:46]
+        dl_host = decrypt_msg[2:42].replace(' ','')
+        dl_port = decrypt_msg[42:46].replace(' ','')
+        dl_path = decrypt_msg[46:96].replace(' ','')
+        dl_id = decrypt_msg[96:106].replace(' ','')
+        dl_pw = decrypt_msg[106:116].replace(' ','')
         print("type:",tp)
         print("host:",dl_host)
         print("port:",dl_port)
+        print("path:",dl_path)
+        print("id:",dl_id)
+        print("pw:",dl_pw)
+        dl_sftp =  pysftp.Connection(dl_hos,username='dl_id', password='dl_pw')
+        dl_sftp.get(dl_path, '/root/sensor/Gupdatepkg')
+        dl_sftp.close()
         '''
         serverpath = 
         id = 
@@ -440,18 +488,18 @@ while(True):
         
             # 메시지를 생성합니다.
             message = bytearray()
-            #message.extend(b'\x02')	#stx
+            #message.extend(b'\x02')    #stx
             #message.extend(':'.encode("ASCII"))
             
             message.extend(order[].encode("ASCII")) #메세지명
-            message.extend(data.S_SITE_ID.encode("ASCII"))	#사업장7자리+굴뚝3자리
-            message.extend(data.DATE.encode("ASCII"))	##전체길이
-            message.extend(data.S_DEVICE30_YN.encode("ASCII"))	##버전
-            message.extend(data.S_DEVICE31_CD.encode("ASCII"))	##해쉬코드
-            message.extend(data.S_DEVICE31_YN.encode("ASCII"))	##테일러
+            message.extend(data.S_SITE_ID.encode("ASCII"))    #사업장7자리+굴뚝3자리
+            message.extend(data.DATE.encode("ASCII"))    ##전체길이
+            message.extend(data.S_DEVICE30_YN.encode("ASCII"))    ##버전
+            message.extend(data.S_DEVICE31_CD.encode("ASCII"))    ##해쉬코드
+            message.extend(data.S_DEVICE31_YN.encode("ASCII"))    ##테일러
 
-            message.extend('Tpm2+NPl/SYPq84leQ3MwVcSLl435284R+E6vZlYFDE=<EOF>'.encode("ASCII"))	#etx
-            #message.extend('\x03'.encode("ASCII"))	#etx
+            message.extend('Tpm2+NPl/SYPq84leQ3MwVcSLl435284R+E6vZlYFDE=<EOF>'.encode("ASCII"))    #etx
+            #message.extend('\x03'.encode("ASCII"))    #etx
 
 
             print(message)
@@ -472,9 +520,9 @@ while(True):
         db_datas = client_socket.recv(1024)
         print('Received', repr(db_datas.decode()))
 
-	
+    
 
-	#
+    #
 
 # 소켓을 닫습니다.
 client_socket.close()

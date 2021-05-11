@@ -49,11 +49,19 @@ for i in range(len(fin)):
 		print(fin[i])
 		'''
 msg = 'bc35dcc9982c88a788f6feeb177cae1143695d9f4e6bad70d8400e63f91f23610666a49b7d4fbd8925444109a54e11744dc859acd20fa4cf212e5146d5d26f91d477e8da0d848075ff875dca2e410e0e9bd912cefbcc1b3e0c7bec86e7f2b81390b23cf563c2a2d77f2f7f826681366be2138a820fec323fcc9e83be19ccfe23'
+msg1 = '32,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,74,65,73,74,2E,6A,69,6E,77,6F,6F,73,69,2E,63,6F,2E,6B,72,20,38,32,32,31,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,2F,49,47,57,2E,65,78,65,20,20,20,20,66,74,70,73,30,31,20,20,20,20,66,74,70,73,30,31'
+msg2 = msg1.replace(',','')
+
 msg_list = []
 dec_list = []
 fin_list = []
+
+
+msg_list2 = []
+dec_list2 = []
+fin_list2 = []
 for i in range(int((len(msg))/2)) :
-    msg_list.append(('0x'+msg[2*i:2*i+2]))
+    msg_list.append((msg[2*i:2*i+2]))
 for i in range(len(msg_list)):
 	dec_list.append(int(msg_list[i],16))
 for i in range(len(dec_list)):
@@ -61,12 +69,30 @@ for i in range(len(dec_list)):
 
 print(hex(188), type(int(hex(188),16)))
 
-print(fin_list)
+print("finlist:",msg_list)
 print(type(fin_list[1]))
 
+intlist = []
+for i in range(len(msg_list)):
+	intlist.append(int(msg_list[i],16))
+print(intlist)
+'''
+msg1 = '32,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,74,65,73,74,2E,6A,69,6E,77,6F,6F,73,69,2E,63,6F,2E,6B,72,20,38,32,32,31,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,2F,49,47,57,2E,65,78,65,20,20,20,20,66,74,70,73,30,31,20,20,20,20,66,74,70,73,30,31'
+msg2 = msg1.replace(',','')
 
+for i in range(int((len(msg2))/2)) :
+    msg_list2.append(('0x'+msg2[2*i:2*i+2]))
+for i in range(len(msg_list2)):
+	dec_list2.append(int(msg_list2[i],16))
+for i in range(len(dec_list2)):
+	fin_list2.append(hex(int(msg_list2[i],16)))
+
+print(fin_list2)
 # msg_list > hex_string
 
 #an_ integer > int(msg_list[i], 16)
 
 # hex_value = hex(an_integer) > fin_list.append(hex(int(msg_list[i],16)))
+
+print( len(fin_list), len(fin_list2))
+'''
