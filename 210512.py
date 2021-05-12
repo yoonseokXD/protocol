@@ -97,7 +97,6 @@ class CBC():
     plainText_array1 = (ctypes.c_ubyte * len(plainText))(*plainText)
     plainText_array = (ctypes.c_ubyte * len(plainText))(*plainText)
     pbszCipherText_array = (ctypes.c_ubyte * len(pbszCipherText))(*pbszCipherText)
-
     kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
     seed_cbc_encrypt = kisa_seed_cbc.SEED_CBC_Encrypt
     seed_cbc_decrypt = kisa_seed_cbc.SEED_CBC_Decrypt
@@ -118,7 +117,7 @@ class CBC():
     
         plainText = msg
         plainTextList = []
-        for i in range(int((len(plainText))/2)) :
+        for i in range(round((len(plainText))/2)) :
             plainTextList.append(int((plainText[2*i:2*i+2]),16))
         print("plainTextList:",plainTextList)
         plainText_array = (ctypes.c_ubyte * len(plainTextList))(*plainTextList)
@@ -143,7 +142,7 @@ class CBC():
         print("encryptedHexArray:",encryptedHexArray)
         encryptedHexStr=''.join(encryptedHexArray)
         print("encryptedHexStr:", encryptedHexStr)
-            
+        
     def encrypt_sample() : # decrypt 함수의 암호문 길이를 리턴하기 위한 함수이다.
         
         res = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
@@ -151,7 +150,8 @@ class CBC():
 
         range(0, res)
         for i in range(res):
-                print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
+                print(hex(round(CBC.pbszCipherText_array[i])), end=' ')
+        print(type(res))
         return res
 
     def decrypt(msg) :
@@ -160,7 +160,7 @@ class CBC():
         print("inputEncryptedStr:", inputEncryptedStr)
         inputEncryptedStr_list = []
         print("inputEncryptedStr_list:", inputEncryptedStr_list)
-        for i in range(int((len(inputEncryptedStr))/2)) :
+        for i in range(round((len(inputEncryptedStr))/2)) :
             inputEncryptedStr_list.append((inputEncryptedStr[2*i:2*i+2]))
         print("inputEncryptedStr_list2:", inputEncryptedStr_list)
         intlist = []
@@ -172,13 +172,13 @@ class CBC():
         res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, input_array, CBC.encrypt_sample(), CBC.plainText_array) # key, IV, 암호문, 암호문 길이, 평문출력버퍼
 
         decrypt_result = ''
-        print("decrypt res :", res_d)
-        range(0, res_d)
+        print("??????????decrypt res :", res_d)
+        
         for i in range(res_d):
                 print(hex(CBC.plainText_array[i]), end=' ')
                 decrypt_result+=chr(CBC.plainText_array[i])
                 
-        print("\r\n")
+        print("----\r\n")
         print("Dectypted Result:",decrypt_result)
         return decrypt_result
 
@@ -407,9 +407,9 @@ class device_upgrade_handler :
         tp = decrypt_msg[0:2]
         dl_host = decrypt_msg[2:42].replace(' ','')
         dl_port = decrypt_msg[42:46].replace(' ','')
-        dl_path = decrypt_msg[46:96].replace(' ','')
-        dl_id = decrypt_msg[96:106].replace(' ','')
-        dl_pw = decrypt_msg[106:]
+        dl_path = decrypt_msg[46:97].replace(' ','')
+        dl_id = decrypt_msg[97:107].replace(' ','')
+        dl_pw = decrypt_msg[107:117].replace(' ','')
         print("type:",tp)
         print("host:",dl_host)
         print("port:",dl_port)
@@ -439,7 +439,7 @@ class device_upgrade_handler :
         os.system("chmod 755 /root/sensor/updatePakage/update.sh")
         os.system("/root/sensor/updatePakage/update.sh")
     
-'''
+
 
 
 
@@ -489,69 +489,3 @@ if __name__ == '__main__':
 
 
 
-
-
-
-
-
-
-'''
-while(True):
-
-        
-        
-        #result = {}
-        for data in db_datas:
-            #result[data.ID_AD_NUM, data.S_DEVICE01_ID] = [data.S_DEVICE1_VALUE, data.S_MEASURE_DATE]
-
-    #db_data = db_session.query(TDEVICEDATA5SEC).filter(TDEVICEDATA5SEC.ID_DEVICE_DATA_5SEC == max_id).limit(1)
-
-        #if(db_datas.count() > 0):
-
-            #data = db_datas
-
-        
-            # 메시지를 생성합니다.
-            message = bytearray()
-            #message.extend(b'\x02')    #stx
-            #message.extend(':'.encode("ASCII"))
-            
-            message.extend(order[].encode("ASCII")) #메세지명
-            message.extend(data.S_SITE_ID.encode("ASCII"))    #사업장7자리+굴뚝3자리
-            message.extend(data.DATE.encode("ASCII"))    ##전체길이
-            message.extend(data.S_DEVICE30_YN.encode("ASCII"))    ##버전
-            message.extend(data.S_DEVICE31_CD.encode("ASCII"))    ##해쉬코드
-            message.extend(data.S_DEVICE31_YN.encode("ASCII"))    ##테일러
-
-            message.extend('Tpm2+NPl/SYPq84leQ3MwVcSLl435284R+E6vZlYFDE=<EOF>'.encode("ASCII"))    #etx
-            #message.extend('\x03'.encode("ASCII"))    #etx
-
-
-            print(message)
-            
-
-            # 메시지를 전송합니다.
-            print("메시지 전송")
-            
-            client_socket.send(message)
-            
-            
-        break
-            
-
-                
-        
-        # 메시지를 수신합니다.
-        db_datas = client_socket.recv(1024)
-        print('Received', repr(db_datas.decode()))
-
-    
-
-    #
-
-# 소켓을 닫습니다.
-client_socket.close()
-
-
-
-'''
