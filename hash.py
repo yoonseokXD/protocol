@@ -21,7 +21,4 @@ print(list1)
 print(bsr.decode('ascii'))
 for i in range(len(list1)) :
 	list2.append(('\\'+'x'+list1[i]))
-	for i in range(len(list2)):
-		list2[i] = q.popleft(list2[i])
-	
 print(list2)

@@ -6,7 +6,7 @@ from crccheck.crc import Crc, Crc16Ccitt
 #from paramiko.sftp_client import SFTP
 import distributed
 from dateutil.parser import parse
-import ctypes, pysftp
+import ctypes
 from array import *
 import numpy as np
 import struct
@@ -200,7 +200,8 @@ class asyncio_client():
             payload_nak = b'15'
             
             
-            read_data = await reader.read(1024)
+            recv_data = await reader.read(1024)
+            read_data = bytes.fromhex(recv_data.decode()).decode('utf-8')
             print("---- async protocol start ----")
             print(("received : {} bytes").format(len(read_data)))
             if read_data == b'06': #ACK부분 수정필요. 수신데이터와 분리할 필요가 있음
@@ -391,10 +392,11 @@ class device_upgrade_handler :
         print("path:",dl_path)
         print("id:",dl_id)
         print("pw:",dl_pw)
+        '''
         dl_sftp =  pysftp.Connection(dl_hos,username='dl_id', password='dl_pw')
         dl_sftp.get(dl_path, '/root/sensor/Gupdatepkg')
         dl_sftp.close()
-        '''
+        
         serverpath = 
         id = 
         pwd = 

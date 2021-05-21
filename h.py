@@ -60,6 +60,10 @@ fin_list = []
 msg_list2 = []
 dec_list2 = []
 fin_list2 = []
+msg_list = []
+dec_list = []
+fin_list = []
+
 for i in range(int((len(msg))/2)) :
     msg_list.append((msg[2*i:2*i+2]))
 for i in range(len(msg_list)):

@@ -17,7 +17,7 @@ port = 8000
 
 
 
-kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
+
 
 q = Queue()
 tq = Queue()
@@ -51,57 +51,35 @@ db_session = Database.getSession()"""
 db_datas = ('1100001001').encode('ascii')
 JEJO_CODE = 'HR'.encode('ascii')
 
-class CBC():
-    pbszUserKey = [0x0E9, 0x0F3, 0x094, 0x037, 0x00A, 0x0D4, 0x005, 0x089, 0x088, 0x0E3, 0x04F, 0x08F, 0x008, 0x017, 0x079, 0x0F1]
-    pbszIV = [0x06F, 0x0BA, 0x0D9, 0x0FA, 0x036, 0x016, 0x025, 0x001, 0x026, 0x08D, 0x066, 0x0A7, 0x035, 0x0A8, 0x01A, 0x081]
-    plainText = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
-    pbszCipherText = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
+# Use library : ctypes
+# need file : kisa_seed_cbc.c, kisa_seed_cbc.h, kisa_seed_cbc.so
+# [.so] file is for linux.
 
+kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
 
+class CBC(): 
+
+    # UserKey, IV : Fixed Value , need 16 hex integer in list.
+    
+    pbszUserKey = []
+    pbszIV = []
+    
+    # ctypes need size
+    plainText = [0x00] * 231
+    pbszCipherText = [0x00] * 210
+
+    # Data type : '__main__.c_ubyte_Array_
     pbszUserKey_array = (ctypes.c_ubyte * len(pbszUserKey))(*pbszUserKey)
     pbszIV_array = (ctypes.c_ubyte * len(pbszIV))(*pbszIV)
     plainText_array1 = (ctypes.c_ubyte * len(plainText))(*plainText)
     plainText_array = (ctypes.c_ubyte * len(plainText))(*plainText)
     pbszCipherText_array = (ctypes.c_ubyte * len(pbszCipherText))(*pbszCipherText)
-    kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
+
     seed_cbc_encrypt = kisa_seed_cbc.SEED_CBC_Encrypt
     seed_cbc_decrypt = kisa_seed_cbc.SEED_CBC_Decrypt
 
-	#샘플 문장. 전체 평문의 길이를 계산하기 위한 용도로 사용한다
+	# Sample plain text 
+    # for byte array size
     ipAddr = "test.jinwoosi.co.kr"
     portNum = "8282"
     pathName = "/IGW.exe"
@@ -111,22 +89,24 @@ class CBC():
     bPUPG_msg = bytes(PUPG_msg, 'utf-8')
     PUPG_array = (ctypes.c_ubyte * len(bPUPG_msg))(*bPUPG_msg)
     
-#seed_cbc_encrypt(pbszUserKey_array, pbszIV_array, plainText_array, pbszCipherText_array)
+    def encrypt(msg) : # process : hex string -> int list -> unsigned char c_ubyte_Array -> ENCRYPT -> hex string
 
-    def encrypt(msg) : #인풋 메세지 암호화 함수
-    
+        #input type : hex string (without 0x)
+        #return type : hex string (without 0x)
+        
         plainText = msg
         plainTextList = []
-        for i in range(round((len(plainText))/2)) :
-            plainTextList.append(int((plainText[2*i:2*i+2]),16))
-        print("plainTextList:",plainTextList)
-        plainText_array = (ctypes.c_ubyte * len(plainTextList))(*plainTextList)
-        res_e = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
-        print("encrypt res :", res_e)
         encryptedTextArray = []
         encryptedHexArray = []
- 
-        range(0, res_e)
+        plainText_array = (ctypes.c_ubyte * len(plainTextList))(*plainTextList)
+
+        for i in range(round((len(plainText))/2)) :
+            plainTextList.append(int((plainText[2*i:2*i+2]),16))
+
+        
+        # args : key, IV, plainText, len(plainText), returnbuffer
+        res_e = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) 
+
         for i in range(res_e):
             print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
             encryptedTextArray.append(CBC.pbszCipherText_array[i])
@@ -135,44 +115,48 @@ class CBC():
             encryptedHexArray.append((hex(encryptedTextArray[i])[2:]))
             if len(encryptedHexArray[i]) < 2 :
                 encryptedHexArray[i] = '0'+encryptedHexArray[i]
-        print("\r\n")
-        print("encryptedTextArray:", encryptedTextArray)
-        print("\r\n")
-        
-        print("encryptedHexArray:",encryptedHexArray)
+
         encryptedHexStr=''.join(encryptedHexArray)
+        print("\r\n")
         print("encryptedHexStr:", encryptedHexStr)
-        
-    def encrypt_sample() : # decrypt 함수의 암호문 길이를 리턴하기 위한 함수이다.
+
+        return encryptedHexStr # return type : hex string
+
+
+
+    # Define-decrypt need len(encrypt string)
+    def encrypt_sample() : 
         
         res = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
-        print("encrypt res :", res)
-
-        range(0, res)
+        
         for i in range(res):
                 print(hex(round(CBC.pbszCipherText_array[i])), end=' ')
-        print(type(res))
+
         return res
 
-    def decrypt(msg) :
-        print("msg:", msg)
+
+    def decrypt(msg) : # process : hex string -> int list -> unsigned char c_ubyte_Array -> DECRYPT -> plain Text
+
+        #input : encrypted hex string (without 0x)
+        #return : decrypted plain text string
+
         inputEncryptedStr = msg
-        print("inputEncryptedStr:", inputEncryptedStr)
         inputEncryptedStr_list = []
-        print("inputEncryptedStr_list:", inputEncryptedStr_list)
+        intlist = []
+        input_array = (ctypes.c_ubyte * len(intlist))(*intlist)
+        decrypt_result = ''
+
         for i in range(round((len(inputEncryptedStr))/2)) :
             inputEncryptedStr_list.append((inputEncryptedStr[2*i:2*i+2]))
-        print("inputEncryptedStr_list2:", inputEncryptedStr_list)
-        intlist = []
+
         for i in range(len(inputEncryptedStr_list)):
             intlist.append(int(inputEncryptedStr_list[i],16))
-        print("intlist:", intlist)
-        input_array = (ctypes.c_ubyte * len(intlist))(*intlist)
+        
+        # args : key, IV, encrypted message, len(encrypted message), return buffer(plainText)
+        res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, input_array, CBC.encrypt_sample(), CBC.plainText_array) 
 
-        res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, input_array, CBC.encrypt_sample(), CBC.plainText_array) # key, IV, 암호문, 암호문 길이, 평문출력버퍼
-
-        decrypt_result = ''
-        print("??????????decrypt res :", res_d)
+        
+        print("decrypt result :", res_d)
         
         for i in range(res_d):
                 print(hex(CBC.plainText_array[i]), end=' ')
@@ -180,6 +164,7 @@ class CBC():
                 
         print("----\r\n")
         print("Dectypted Result:",decrypt_result)
+
         return decrypt_result
 
 
@@ -203,13 +188,13 @@ class CBC():
     print("\r\n")
 '''
 
-class asyncio_client():
+class gl_client():
         
-    async def run_client():
-        
-        reader, writer = await asyncio.open_connection(host,port)
+    def run_client():
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((host,port))
         print("connection info :",host,':',port)
-        writer.write(msg_handler.TVER())
+        client_socket.send(msg_handler.TVER())
         
         while True :
             
@@ -220,7 +205,7 @@ class asyncio_client():
             payload_nak = b'15'
             
             
-            read_data = await reader.read(1024)
+            read_data = client_socket.recv(1024)
             #print("recv:", recv_data)
             #raw_data = recv_data.hex()
             #read_data = bytes.fromhex(raw_data).decode('utf-8')
@@ -243,15 +228,15 @@ class asyncio_client():
                         print("ORDER : TVER")
                         
                         payload = msg_handler.TVER()
-                        writer.write(payload)
-                        writer.write(payload)
+                        client_socket.send(payload)
+                        client_socket.send(payload)
                     
                     elif nak_order == '54555047' :
                         print("ORDER : TUPG")
                         payload = msg_handler.TUPG()
                         print(payload)
-                        writer.write(payload)
-                        writer.write(payload)
+                        client_socket.send(payload)
+                        client_socket.send(payload)
                     elif nak_order == '50555047' :
                         print("order : PUPG")
                 except :
@@ -272,13 +257,13 @@ class asyncio_client():
                     print("ORDER : TVER")
                     
                     payload = msg_handler.TVER()
-                    writer.write(payload)
+                    client_socket.send(payload)
                     
                 elif order == '54555047' : #TUPG
                     print("ORDER : TUPG")
                     payload = msg_handler.TUPG()
                     print(payload)
-                    writer.write(payload)
+                    client_socket.send(payload)
                     
                 elif order == '50555047' : #PUPG업그레이드지시전송, 결과는 TUPG
                     print("order : PUPG")
@@ -287,19 +272,19 @@ class asyncio_client():
                 
                 elif order == '50534554' : # PSET
                     if len(read_data) != 64 :
-                        writer.write(payload_nak)
+                        client_socket.send(payload_nak)
                     else :
                         payload = b'06'
-                        writer.write(payload)
+                        client_socket.send(payload)
                         tq.put(read_data[18:29])
                         msg_handler.PSET()
 
                 elif order == '50564552' : #PVER
                     if len(read_data) != 40 :
-                        writer.write(payload_nak)
+                        client_socket.send(payload_nak)
                     else :
                         payload = msg_handler.DVER()
-                        writer.write(payload)
+                        client_socket.send(payload)
                 elif order == '99999999' : #Encrypt test.
                     CBC.encrypt(read_data[8:])
                 else : 
@@ -307,10 +292,9 @@ class asyncio_client():
             print(("sent : {} bytes.").format(len(payload)))
             print(("message : {}, {}").format(read_data.decode(), type(read_data.decode())))
                 
-
+            break
         print("closing connection")
-        writer.close()
-        await writer.wait_closed()
+        client_socket.close()
 
         
 class msg_handler:
@@ -451,20 +435,7 @@ class device_upgrade_handler :
 
 
 if __name__ == '__main__':
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = None
-    
-    if loop and loop.is_running():
-        print('Async event loop already running')
-        tsk = loop.create_task(asyncio_client.run_client())
-    else:
-        print('Starting new event loop')
-        loop.run_until_complete(asyncio_client.run_client())
-    print(msg_handler.TUPG())
-
-
+    gl_client.run_client()
 
 
 

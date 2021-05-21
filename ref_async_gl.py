@@ -10,7 +10,7 @@ from setting_ip import SettingIPUI
 from monitoring import MonitoringUI
 #from detail_ui import DetailUI
 from connection_status import ConnectionStatusUI
-from gl_protocol import gl_client
+from gl_protocol import asyncio_client
 from setting_password import SettingPasswordUI
 from setting_device_sensor import SettingDeviceSensorUI
 from config import Config as Config
@@ -35,14 +35,11 @@ def TimeSyncThread() :
 def DataDeleteThread() :
         os.system("python3 data_delete_month.py")
         print("장기보관 데이터 삭제")
-
-
-def thread_run() :
-    timer = threading.Timer(5, thread_run)
-    os.system("gl_protocol.py")
-    timer.setDaemon(True)
-    timer.start()
     
+def async_run() :
+	asyncio_client.run_client()
+
+
 form_class = uic.loadUiType("./ui/2_main.ui")[0]
 
 
@@ -188,7 +185,6 @@ class MainWindow(QMainWindow, form_class):
 
 if __name__ == "__main__":
     TimeSyncThread()
-    thread_run()
     os.system("python3 gl_protocol.py")
     app = QApplication(sys.argv)
     app.setFont(QFont("NanumGothic"))

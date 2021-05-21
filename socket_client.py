@@ -61,7 +61,7 @@ class asyncio_client():
             read_data = await reader.read(1024)
             print("---- async protocol start ----")
             print(("received : {} bytes").format(len(read_data)))
-            if read_data == b'06': #ACK부분 수정필요. 수신데이터와 분리할 필요가 있음
+            if read_data == b'06': #ACK부분
                 print("ack")
                 pass
             elif read_data == b'15' :
@@ -127,6 +127,13 @@ class msg_handler:
 
     def version_info():
         pass
+    def TDAT():
+        msg = bytearray()
+        msg_type = order[0].encode('ascii')
+        id_code = db_datas
+        g_time =
+
+        
     def TVER():
         msg = bytearray()
         msg_type = order[5].encode('ascii')
@@ -165,6 +172,8 @@ class msg_handler:
         msg.extend(hash_code)
         msg.extend(CRC_code.encode('ascii'))
         return msg
+    def PSEP(msg):
+	    
 '''
 class device_upgrade_handler :
     def sftp_download(msg):

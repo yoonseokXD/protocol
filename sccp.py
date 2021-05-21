@@ -1,4 +1,4 @@
-import hashlib, os, socket, threading, time, datetime, binascii, asyncio, sys
+import hashlib, os, socket, threading, time, datetime, binascii, asyncio, sys, threading
 from multiprocessing import Queue
 #from db.database import Database
 #from db.models import TDEVICEDATA5MINSERVER, TDEVICEDATA1MINSERVER
@@ -6,34 +6,36 @@ from crccheck.crc import Crc, Crc16Ccitt
 #from paramiko.sftp_client import SFTP
 import distributed
 from dateutil.parser import parse
-import ctypes
+import ctypes, paramiko
 from array import *
 import numpy as np
 import struct
 
-host = "192.168.1.203"
-port = 8000
+host = "10.101.151.158"
+port_s = 5010
+port_r = 9090
 
 
-
+sem = threading.Semaphore(1)
 
 kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
 
 q = Queue()
 tq = Queue()
+
 order = ['TDAT', #0.측정데이터자료전송                  Gateway -> Server           정기실행
-		 'PDUM', #1.저장자료 요청                          Server -> Gateway
-		 'TDUM', #2.저장자료요청 응답                   Gateway -> Server           요청필요
-		 'TFDT', #3.미전송자료 자동전송                 Gateway -> Server           정기실행
-		 'PSEP', #4.비밀번호 암호변경지시                  Server -> Gateway
-		 'TVER', #5.기동정보전송                        Gateway -> server           정기실행
-		 'PTIM', #6.기동정보메세지 수신시 서버시간 전송     Server -> Gateway
-		 'PUPG', #7.업그레이드지시전송                      Server -> Gateway
-		 'TUPG', #8.업그레이드결과전송                   Gateway -> Server          요청필요
-		 'TCNG', #9.설정값 변경항목 자동 전송            Gateway -> Server          정기실행
-		 'PVER', #10.버전정보 조회요청                      Server -> Gateway
-		 'DVER', #11.버전정보 조회응답                   Gateway -> Server          요청필요
-		 'PSET'] #12.수동 시간 설정                         Server -> Gateway
+         'PDUM', #1.저장자료 요청                          Server -> Gateway
+         'TDUM', #2.저장자료요청 응답                   Gateway -> Server           요청필요
+         'TFDT', #3.미전송자료 자동전송                 Gateway -> Server           정기실행
+         'PSEP', #4.비밀번호 암호변경지시                  Server -> Gateway
+         'TVER', #5.기동정보전송                        Gateway -> server           정기실행
+         'PTIM', #6.기동정보메세지 수신시 서버시간 전송     Server -> Gateway
+         'PUPG', #7.업그레이드지시전송                      Server -> Gateway
+         'TUPG', #8.업그레이드결과전송                   Gateway -> Server          요청필요
+         'TCNG', #9.설정값 변경항목 자동 전송            Gateway -> Server          정기실행
+         'PVER', #10.버전정보 조회요청                      Server -> Gateway
+         'DVER', #11.버전정보 조회응답                   Gateway -> Server          요청필요
+         'PSET'] #12.수동 시간 설정                         Server -> Gateway
 
 # 0 3 5 정기실행
 # 수신 후 device 설정 : 6, 8, 12
@@ -51,23 +53,44 @@ db_datas = ('1100001001').encode('ascii')
 JEJO_CODE = 'HR'.encode('ascii')
 
 class CBC():
-    pbszUserKey = [0x0e9, 0x0F3, 0x094, 0x037, 0x00A, 0x0D4, 0x005, 0x089, 0x088, 0x0E3, 0x04F, 0x08F, 0x008, 0x017, 0x079, 0x0F1]
+    pbszUserKey = [0x0E9, 0x0F3, 0x094, 0x037, 0x00A, 0x0D4, 0x005, 0x089, 0x088, 0x0E3, 0x04F, 0x08F, 0x008, 0x017, 0x079, 0x0F1]
     pbszIV = [0x06F, 0x0BA, 0x0D9, 0x0FA, 0x036, 0x016, 0x025, 0x001, 0x026, 0x08D, 0x066, 0x0A7, 0x035, 0x0A8, 0x01A, 0x081]
-    plainText = [50,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,0x74,0x65,0x73,0x74,0x2E,0x6A,0x69,0x6E,0x77,0x6F,0x6F,0x73,
-    0x69,0x2E,0x63,0x6F,0x2E,0x6B,0x72,32,0x38,0x32,0x32,0x31,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,0x2F,0x49,0x47,
-    0x57,0x2E,0x65,0x78,0x65,32,32,32,32,0x66,0x74,0x70,0x73,0x30,0x31,32,32,32,32,
-    0x66,0x74,0x70,0x73,0x30,0x31]
-    pbszCipherText = [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-    0x00,0x00,0x00,0x00,0x00,0x00,0x04,0x05,0x03,0x04,0x0E,0x0A,0x69,0x6E,0x77,0x6F,0x6F,0x73,
-    0x69,0x2E,0x63,0x6F,0x2E,0x6B,0x72,32,0x38,0x32,0x32,0x31,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,
-    32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,0x2F,0x49,0x47,
-    0x57,0x2E,0x65,0x78,0x65,32,32,32,32,0x66,0x74,0x70,0x73,0x30,0x31,32,32,32,32,
-    0x66,0x74,0x70,0x73,0x30,0x31]
-
+    plainText = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+    pbszCipherText = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
 
 
     pbszUserKey_array = (ctypes.c_ubyte * len(pbszUserKey))(*pbszUserKey)
@@ -75,54 +98,92 @@ class CBC():
     plainText_array1 = (ctypes.c_ubyte * len(plainText))(*plainText)
     plainText_array = (ctypes.c_ubyte * len(plainText))(*plainText)
     pbszCipherText_array = (ctypes.c_ubyte * len(pbszCipherText))(*pbszCipherText)
-
     kisa_seed_cbc = ctypes.cdll.LoadLibrary("./kisa_seed_cbc.so")
     seed_cbc_encrypt = kisa_seed_cbc.SEED_CBC_Encrypt
     seed_cbc_decrypt = kisa_seed_cbc.SEED_CBC_Decrypt
 
-#seed_cbc_encrypt = kisa_seed_cbc.SEED_CBC_Encrypt
-
+	# PUPG 샘플 문장. 전체 평문의 길이를 계산하기 위한 용도로 사용한다
+    ipAddr = "test.jinwoosi.co.kr"
+    portNum = "8282"
+    pathName = "/IGW.exe"
+    loginId = "ftps01"
+    loginPw = "ftps01"
+    PUPG_msg = "2%40s%5s%50s%10s%10s" %(ipAddr, portNum, pathName, loginId, loginPw)
+    bPUPG_msg = bytes(PUPG_msg, 'utf-8')
+    PUPG_array = (ctypes.c_ubyte * len(bPUPG_msg))(*bPUPG_msg)
+    
 #seed_cbc_encrypt(pbszUserKey_array, pbszIV_array, plainText_array, pbszCipherText_array)
-    def encrypt(msg) : #msg 타입은 hex list, plainText_array 통해서 Ctype Array로 변환한다.
-        global res_e
-        res_e = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, 63, CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
-        print("encrypt res :", res_e)
 
+    def encrypt(msg) : #인풋 메세지 암호화 함수
+        
+        plainText = msg
+        plainTextList = []
+        for i in range(round((len(plainText))/2)) :
+            plainTextList.append(int((plainText[2*i:2*i+2]),16))
+        print("plainTextList:",plainTextList)
+        plainText_array = (ctypes.c_ubyte * len(plainTextList))(*plainTextList)
+        res_e = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
+        print(len(CBC.PUPG_msg), CBC.pbszCipherText_array, type(len(CBC.PUPG_msg)), type(CBC.pbszCipherText_array))
+        print("encrypt res :", res_e)
+        encryptedTextArray = []
+        encryptedHexArray = []
+        print(type(plainText_array))
+            
         range(0, res_e)
         for i in range(res_e):
-                print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
+            print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
+            encryptedTextArray.append(CBC.pbszCipherText_array[i])
+        for i in range(len(encryptedTextArray)):
+            encryptedHexArray.append((hex(encryptedTextArray[i])[2:]))
+            if len(encryptedHexArray[i]) < 2 :
+                encryptedHexArray[i] = '0'+encryptedHexArray[i]
         print("\r\n")
-
-    def for_resd(msg) : #msg 타입은 hex list, plainText_array 통해서 Ctype Array로 변환한다.
-
-        res_ed = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, 63, CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
-        print("encrypt res :", res_ed)
-
-        range(0, res_ed)
-        for i in range(res_ed):
-                print(hex(int(CBC.pbszCipherText_array[i])), end=' ')
+        print("encryptedTextArray:", encryptedTextArray)
         print("\r\n")
-        return res_ed
+        
+        print("encryptedHexArray:",encryptedHexArray)
+        encryptedHexStr=''.join(encryptedHexArray)
+        print("encryptedHexStr:", encryptedHexStr)
+        
+    def encrypt_sample() : # decrypt 함수의 암호문 길이를 리턴하기 위한 함수이다.
+        
+        res = CBC.seed_cbc_encrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.plainText_array, len(CBC.PUPG_msg), CBC.pbszCipherText_array) # key, IV, 평문, 평문 길이, 암호문출력버퍼
+        print("encrypt res :", res)
+
+        range(0, res)
+        for i in range(res):
+                print(hex(round(CBC.pbszCipherText_array[i])), end=' ')
+        print(type(res))
+        return res
+
     def decrypt(msg) :
-        msg_list = []
-        for i in range(int((len(msg))/2)) :
-            msg_list.append(int((msg[2*i:2*i+2]),16))
-        print(msg_list)
-        res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, CBC.pbszCipherText_array, CBC.for_resd(msg), CBC.plainText_array) # key, IV, 암호문, 암호문 길이, 평문출력버퍼
+        print("msg:", msg)
+        inputEncryptedStr = msg
+        print("inputEncryptedStr:", inputEncryptedStr)
+        inputEncryptedStr_list = []
+        print("inputEncryptedStr_list:", inputEncryptedStr_list)
+        for i in range(round((len(inputEncryptedStr))/2)) :
+            inputEncryptedStr_list.append((inputEncryptedStr[2*i:2*i+2]))
+        print("inputEncryptedStr_list2:", inputEncryptedStr_list)
+        intlist = []
+        for i in range(len(inputEncryptedStr_list)):
+            intlist.append(int(inputEncryptedStr_list[i],16))
+        print("intlist:", intlist)
+        input_array = (ctypes.c_ubyte * len(intlist))(*intlist)
 
-        decrypt_result = []
+        res_d = CBC.seed_cbc_decrypt(CBC.pbszUserKey_array, CBC.pbszIV_array, input_array, CBC.encrypt_sample(), CBC.plainText_array) # key, IV, 암호문, 암호문 길이, 평문출력버퍼
+
+        decrypt_result = ''
         print("decrypt res :", res_d)
-        range(0, res_d)
+        
         for i in range(res_d):
-                decrypt_result.append(CBC.plainText_array[i])
                 print(hex(CBC.plainText_array[i]), end=' ')
-        for i in range(res_d):
-                print(chr(CBC.plainText_array[i]), end='')
-        res_decode = ''
-        for i in range(len(decrypt_result)):
-            res_decode+=(chr(int(str(decrypt_result[i]))))
-        print("\r\n")
-        return res_decode
+                decrypt_result+=chr(CBC.plainText_array[i])
+                
+        print("----\r\n")
+        print("Dectypted Result:",decrypt_result)
+        return decrypt_result
+
 
 '''
     ######################################################################################################
@@ -144,13 +205,16 @@ class CBC():
     print("\r\n")
 '''
 
-class asyncio_client():
+class gl_client():
+
         
-    async def run_client():
         
-        reader, writer = await asyncio.open_connection(host,port)
+    def run_client():
+        sem.acquire()
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((host,port))
         print("connection info :",host,':',port)
-        writer.write(msg_handler.TVER())
+        client_socket.send(msg_handler.TVER())
         
         while True :
             
@@ -161,7 +225,10 @@ class asyncio_client():
             payload_nak = b'15'
             
             
-            read_data = await reader.read(1024)
+            read_data = client_socket.recv(1024)
+            #print("recv:", recv_data)
+            #raw_data = recv_data.hex()
+            #read_data = bytes.fromhex(raw_data).decode('utf-8')
             print("---- async protocol start ----")
             print(("received : {} bytes").format(len(read_data)))
             if read_data == b'06': #ACK부분 수정필요. 수신데이터와 분리할 필요가 있음
@@ -181,15 +248,15 @@ class asyncio_client():
                         print("ORDER : TVER")
                         
                         payload = msg_handler.TVER()
-                        writer.write(payload)
-                        writer.write(payload)
+                        client_socket.send(payload)
+                        client_socket.send(payload)
                     
                     elif nak_order == '54555047' :
                         print("ORDER : TUPG")
                         payload = msg_handler.TUPG()
                         print(payload)
-                        writer.write(payload)
-                        writer.write(payload)
+                        client_socket.send(payload)
+                        client_socket.send(payload)
                     elif nak_order == '50555047' :
                         print("order : PUPG")
                 except :
@@ -210,43 +277,44 @@ class asyncio_client():
                     print("ORDER : TVER")
                     
                     payload = msg_handler.TVER()
-                    writer.write(payload)
+                    client_socket.send(payload)
                     
                 elif order == '54555047' : #TUPG
                     print("ORDER : TUPG")
                     payload = msg_handler.TUPG()
                     print(payload)
-                    writer.write(payload)
+                    client_socket.send(payload)
                     
                 elif order == '50555047' : #PUPG업그레이드지시전송, 결과는 TUPG
                     print("order : PUPG")
-                    print("sftp message :", read_data[36:])
-                    device_upgrade_handler.sftp_download(read_data[36:])
-                
+                    print("sftp message :", read_data[36:(len(read_data)-4)])
+                    device_upgrade_handler.sftp_download(read_data[36:(len(read_data)-4)])
+                    
                 elif order == '50534554' : # PSET
                     if len(read_data) != 64 :
-                        writer.write(payload_nak)
+                        client_socket.send(payload_nak)
                     else :
                         payload = b'06'
-                        writer.write(payload)
+                        client_socket.send(payload)
                         tq.put(read_data[18:29])
                         msg_handler.PSET()
 
                 elif order == '50564552' : #PVER
                     if len(read_data) != 40 :
-                        writer.write(payload_nak)
+                        client_socket.send(payload_nak)
                     else :
                         payload = msg_handler.DVER()
-                        writer.write(payload)
+                        client_socket.send(payload)
+                elif order == '99999999' : #Encrypt test.
+                    CBC.encrypt(read_data[8:])
+                    
                 else : 
                     pass
             print(("sent : {} bytes.").format(len(payload)))
             print(("message : {}, {}").format(read_data.decode(), type(read_data.decode())))
-                
-
+            
+        sem.release()
         print("closing connection")
-        writer.close()
-        await writer.wait_closed()
 
         
 class msg_handler:
@@ -341,24 +409,33 @@ class device_upgrade_handler :
         
     
         tp = decrypt_msg[0:2]
-        dl_host = decrypt_msg[22:42]
-        dl_port = decrypt_msg[42:46]
+        dl_host = decrypt_msg[2:42].replace(' ','')
+        dl_port = decrypt_msg[42:46].replace(' ','')
+        dl_path = decrypt_msg[46:97].replace(' ','')
+        dl_id = decrypt_msg[97:107].replace(' ','')
+        dl_pw = decrypt_msg[107:117].replace(' ','')
         print("type:",tp)
         print("host:",dl_host)
         print("port:",dl_port)
-        '''
-        serverpath = 
-        id = 
-        pwd = 
+        print("path:",dl_path)
+        print("id:",dl_id)
+        print("pw:",dl_pw)
+        
+        #dl_sftp =  pysftp.Connection(dl_host,username='dl_id', password='dl_pw')
+        #dl_sftp.get(dl_path, '/root/sensor/Gupdatepkg')
+        #dl_sftp.close()
+        serverpath = '/root/sensor/target.txt'
         clientpath = '/root/sensor/updatePakage'
-        filename =
+        
         
         transport = paramiko.Transport(dl_host,dl_port)
-        transport.connect(username=id, password=pwd)
-        SFTP.get(serverpath, clientpath)
-        SFTP.close()
+        transport.connect(username=dl_id, password=dl_pw)
+        miko_sftp = paramiko.SFTPClient.from_transport(transport)
+
+        miko_sftp.get(serverpath, clientpath)
+        miko_sftp.close()
         transport.close()
-        device_upgrade_handler.upgrade()
+        print()
         
     def upgrade():
         os.system("rm -rf /root/sensor/updatePakage")
@@ -368,7 +445,7 @@ class device_upgrade_handler :
     
 
 
-'''
+
 
 
 
@@ -378,18 +455,7 @@ class device_upgrade_handler :
 
 
 if __name__ == '__main__':
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = None
-    
-    if loop and loop.is_running():
-        print('Async event loop already running')
-        tsk = loop.create_task(asyncio_client.run_client())
-    else:
-        print('Starting new event loop')
-        loop.run_until_complete(asyncio_client.run_client())
-    print(msg_handler.TUPG())
+    gl_client.run_client()
 
 
 
@@ -414,71 +480,3 @@ if __name__ == '__main__':
 
 
 
-
-
-
-
-
-
-
-
-'''
-while(True):
-
-        
-        
-        #result = {}
-        for data in db_datas:
-            #result[data.ID_AD_NUM, data.S_DEVICE01_ID] = [data.S_DEVICE1_VALUE, data.S_MEASURE_DATE]
-
-    #db_data = db_session.query(TDEVICEDATA5SEC).filter(TDEVICEDATA5SEC.ID_DEVICE_DATA_5SEC == max_id).limit(1)
-
-        #if(db_datas.count() > 0):
-
-            #data = db_datas
-
-        
-            # 메시지를 생성합니다.
-            message = bytearray()
-            #message.extend(b'\x02')	#stx
-            #message.extend(':'.encode("ASCII"))
-            
-            message.extend(order[].encode("ASCII")) #메세지명
-            message.extend(data.S_SITE_ID.encode("ASCII"))	#사업장7자리+굴뚝3자리
-            message.extend(data.DATE.encode("ASCII"))	##전체길이
-            message.extend(data.S_DEVICE30_YN.encode("ASCII"))	##버전
-            message.extend(data.S_DEVICE31_CD.encode("ASCII"))	##해쉬코드
-            message.extend(data.S_DEVICE31_YN.encode("ASCII"))	##테일러
-
-            message.extend('Tpm2+NPl/SYPq84leQ3MwVcSLl435284R+E6vZlYFDE=<EOF>'.encode("ASCII"))	#etx
-            #message.extend('\x03'.encode("ASCII"))	#etx
-
-
-            print(message)
-            
-
-            # 메시지를 전송합니다.
-            print("메시지 전송")
-            
-            client_socket.send(message)
-            
-            
-        break
-            
-
-                
-        
-        # 메시지를 수신합니다.
-        db_datas = client_socket.recv(1024)
-        print('Received', repr(db_datas.decode()))
-
-	
-
-	#
-
-# 소켓을 닫습니다.
-client_socket.close()
-
-
-
-'''
